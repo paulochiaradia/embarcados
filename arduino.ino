@@ -11,17 +11,19 @@ const int LedVermelhoLuminosidade = 11; // Pino do LED vermelho do sensor de lum
 const int LedVerdeGas = 10;      // Pino do LED verde do sensor de gás
 const int LedAmareloGas = 9;    // Pino do LED amarelo do sensor de gás
 const int LedVermelhoGas = 8;   // Pino do LED vermelho do sensor de gás
-const int LedVerdeSolo = 7;     // Pino do LED verde do sensor de umidade do solo
-const int LedAmareloSolo = 6;   // Pino do LED amarelo do sensor de umidade do solo
-const int LedVermelhoSolo = 5;  // Pino do LED vermelho do sensor de umidade do solo
+const int LedVerdeSolo = 37;     // Pino do LED verde do sensor de umidade do solo
+const int LedAmareloSolo = 35;   // Pino do LED amarelo do sensor de umidade do solo
+const int LedVermelhoSolo = 33;  // Pino do LED vermelho do sensor de umidade do solo
 const int intervaloImpressaoSerial = 1000;  // Intervalo de tempo para impressão na serial
 const unsigned long tempoLimiteluminosidadeAlta = 5000;  // 5 segundos
 const unsigned long tempoLimiteGasAlto = 10000;  // 10 segundos
 const unsigned long tempoLimiteSoloAlto = 10000;  // 10 segundos
 
 // Variaveis do Programa
-int gas = 0;  // Variável para armazenar o valor lido do sensor de gás
-int solo = 0; // Variável para armazenar o valor lido do sensor de umidade do solo
+volatile int gas = 0;  // Variável para armazenar o valor lido do sensor de gás
+volatile int solo = 0; // Variável para armazenar o valor lido do sensor de umidade do solo
+volatile int luminosidade = 0;
+
 unsigned long ultimaSerialPrint = 0; // Variável para armazenar o tempo da última impressão na serial
 unsigned long tempoInicialLuminosidadeAlta = 0; // Variável para armazenar o tempo inicial da luminosidade alta
 unsigned long tempoInicialGasAlto = 0; // Variável para armazenar o tempo inicial do gás alto
@@ -29,6 +31,7 @@ unsigned long tempoInicialSoloAlto = 0; // Variável para armazenar o tempo inic
 
 void setup() {
   Serial.begin(9600);  // Inicia a comunicação serial
+  Serial1.begin(9600);
   pinMode(PinoLumininosidade, INPUT);  // Define o pino do sensor de luminosidade como entrada
   pinMode(PinoGas, INPUT);  // Define o pino do sensor de gás como entrada
   pinMode(PinoSolo, INPUT);  // Define o pino do sensor de umidade do solo como entrada
@@ -38,26 +41,26 @@ void setup() {
   pinMode(LedVerdeGas, OUTPUT); // Define o pino do LED verde do sensor de gás como saída
   pinMode(LedAmareloGas, OUTPUT); // Define o pino do LED amarelo do sensor de gás como saída
   pinMode(LedVermelhoGas, OUTPUT); // Define o pino do LED vermelho do sensor de gás como saída
-  Wire.begin(0x2C); // Inicia a comunicação I2C com o endereço 0x2C
-  Wire.setClock(100000); // Define a velocidade da comunicação I2C
 }
 
 void loop() {
   int valor = analogRead(PinoLumininosidade); // Lê o valor do sensor de luminosidade
-  float luminosidade = map(valor, 0, 1023, 0, 100); // Mapeia o valor lido para o intervalo de 0 a 100
+  luminosidade = map(valor, 0, 1023, 0, 100); // Mapeia o valor lido para o intervalo de 0 a 100
   gas = analogRead(PinoGas); // Lê o valor do sensor de gás
   solo = analogRead(PinoSolo); // Lê o valor do sensor de umidade do solo
 
   delay(1000); // Aguarda 1 segundo
   
-  enviarDadosI2C(luminosidade, gas, solo);  // Envia dados via I2C
+  if (Serial1.available()) {
+    Serial1.write(gas);
+    
+  }
 
-
-    // Imprime os valores na serial
+  // Imprime os valores na serial
   if (millis() - ultimaSerialPrint > intervaloImpressaoSerial) {
     Serial.print("luminosidade: ");
     Serial.print(luminosidade);
-    Serial.print("C - Gas: ");
+    Serial.print("Lux - Gas: ");
     Serial.print(gas);
     Serial.print(" - Solo: ");
     Serial.print(solo);
@@ -95,7 +98,7 @@ void loop() {
   }
 
 //Logica para acender os leds de acordo com os valores lidos em solo
-    if (solo > 750) {
+    if (solo < 250) {
         if (tempoInicialSoloAlto == 0) {
         tempoInicialSoloAlto = millis();  // Inicia a contagem do tempo
         }
@@ -112,7 +115,7 @@ void loop() {
         // Reseta a contagem do tempo se solo estiver abaixo de 40
         tempoInicialSoloAlto = 0;
     
-        if (solo > 500) {
+        if (solo < 500) {
         digitalWrite(LedVerdeSolo, LOW);
         digitalWrite(LedAmareloSolo, HIGH);
         digitalWrite(LedVermelhoSolo, LOW);
@@ -125,7 +128,7 @@ void loop() {
     
 
 //Logica para acender os leds de acordo com os valores lidos em luminosidade
-  if (luminosidade > 250) {
+  if (luminosidade < 3) {
     if (tempoInicialLuminosidadeAlta == 0) {
       tempoInicialLuminosidadeAlta = millis();  // Inicia a contagem do tempo
     }
@@ -142,7 +145,7 @@ void loop() {
     // Reseta a contagem do tempo se a luminosidade estiver abaixo de 40
     tempoInicialLuminosidadeAlta = 0;
 
-    if (luminosidade > 100) {
+    if (luminosidade < 6) {
       digitalWrite(LedVerdeLuminosidade, LOW);
       digitalWrite(LedAmareloLuminosidade, HIGH);
       digitalWrite(LedVermelhoLuminosidade, LOW);
@@ -192,14 +195,13 @@ void piscarLEDsSolo() {
 
 
 // Função para enviar os dados via I2C
-void enviarDadosI2C(float luminosidade, int gas, int solo) {
-  Wire.beginTransmission(0x2C);  // Inicia a transmissão com o endereço 0x2C
-  Wire.write("L:");  // Identificador para luminosidade
+void enviarDadosI2C(int luminosidade, int gas, int solo) {
+  // Inicia a transmissão com o endereço 0x2C
+  // Wire.write("L:");  // Identificador para luminosidade
   Wire.write((byte*)&luminosidade, sizeof(luminosidade));  // Envia dados de luminosidade
-  Wire.write(" G:");  // Identificador para gás
-  Wire.write((byte*)&gas, sizeof(gas));  // Envia dados de gás
-  Wire.write(" S:");  // Identificador para solo
-  Wire.write((byte*)&solo, sizeof(solo));  // Envia dados de solo
+  // Wire.write(" G:");  // Identificador para gás
+  // Wire.write((byte*)&gas, sizeof(gas));  // Envia dados de gás
+  // Wire.write(" S:");  // Identificador para solo
+  // Wire.write((byte*)&solo, sizeof(solo));  // Envia dados de solo
   Wire.endTransmission();  // Finaliza a transmissão
 }
-
