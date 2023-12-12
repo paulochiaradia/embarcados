@@ -45,9 +45,11 @@ void setup() {
 
 void loop() {
   int valor = analogRead(PinoLumininosidade); // Lê o valor do sensor de luminosidade
-  luminosidade = map(valor, 0, 1023, 0, 100); // Mapeia o valor lido para o intervalo de 0 a 100
-  gas = analogRead(PinoGas); // Lê o valor do sensor de gás
-  solo = analogRead(PinoSolo); // Lê o valor do sensor de umidade do solo
+  luminosidade = map(valor, 0, 1023, 0, 99); // Mapeia o valor lido para o intervalo de 0 a 100
+  int valor2 = analogRead(PinoGas); // Lê o valor do sensor de gás
+  gas = map(valor2, 0, 1023, 0, 99); // Mapeia o valor lido para o intervalo de 0 a 100
+  int valor3 = analogRead(PinoSolo); // Lê o valor do sensor de umidade do solo
+  solo = map(valor3, 0, 1023, 0, 99); // Mapeia o valor lido para o intervalo de 0 a 100
 
   delay(1000); // Aguarda 1 segundo
   
